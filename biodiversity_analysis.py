@@ -12,10 +12,21 @@ Original file is located at
 
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Не показывать графики
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
+import os
+from pathlib import Path
 warnings.filterwarnings('ignore')
+
+# Создание папки для результатов
+OUTPUT_DIR = Path('results')
+OUTPUT_DIR.mkdir(exist_ok=True)
+(OUTPUT_DIR / 'figures').mkdir(exist_ok=True)
+(OUTPUT_DIR / 'data').mkdir(exist_ok=True)
+(OUTPUT_DIR / 'reports').mkdir(exist_ok=True)
 
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.preprocessing import StandardScaler, RobustScaler
@@ -43,31 +54,25 @@ plt.rcParams['font.size'] = 11
 RANDOM_STATE = 42
 np.random.seed(RANDOM_STATE)
 
-# Google Colab code removed - using local file
-# from google.colab import drive
-# drive.mount('/content/drive')
-# from google.colab import files
-# uploaded = files.upload()
+df_bio = pd.read_csv("/Users/rizatkabdybek/Documents/Data/WB_GBIOD.csv")
 
-df_bio = pd.read_csv('WB_GBIOD.csv')
-
-print("Размер датасета:", df_bio.shape)
-print("\nПервые строки:")
-df_bio.head()
-
-print("Информация о данных:")
-df_bio.info()
-
-print("\nОписательная статистика:")
-df_bio.describe()
+with open(OUTPUT_DIR / 'reports' / '01_dataset_info.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Размер датасета: {df_bio.shape}\n\n")
+    f.write("Первые строки:\n")
+    f.write(df_bio.head().to_string())
+    f.write("\n\nОписательная статистика:\n")
+    f.write(df_bio.describe().to_string())
 
 bio_data = df_bio[['REF_AREA', 'REF_AREA_LABEL', 'INDICATOR_LABEL', 'OBS_VALUE']].copy()
 bio_data.columns = ['Country_Code', 'Country', 'Indicator', 'Value']
 
-print(f"Уникальные страны: {bio_data['Country'].nunique()}")
-print(f"\nУникальные индикаторы: {bio_data['Indicator'].nunique()}")
-print("\nПримеры индикаторов:")
-print(bio_data['Indicator'].unique()[:5])
+# Сохранение информации об уникальных значениях
+with open(OUTPUT_DIR / 'reports' / '02_unique_values.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Уникальные страны: {bio_data['Country'].nunique()}\n")
+    f.write(f"Уникальные индикаторы: {bio_data['Indicator'].nunique()}\n\n")
+    f.write("Примеры индикаторов:\n")
+    for ind in bio_data['Indicator'].unique()[:5]:
+        f.write(f"  - {ind}\n")
 
 bio_pivot = bio_data.pivot_table(
     index=['Country_Code', 'Country'],
@@ -76,8 +81,12 @@ bio_pivot = bio_data.pivot_table(
     aggfunc='first'
 ).reset_index()
 
-print(f"Размер сводной таблицы: {bio_pivot.shape}")
-bio_pivot.head()
+# Сохранение сводной таблицы
+bio_pivot.to_csv(OUTPUT_DIR / 'data' / 'bio_pivot.csv', index=False)
+with open(OUTPUT_DIR / 'reports' / '03_pivot_info.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Размер сводной таблицы: {bio_pivot.shape}\n\n")
+    f.write("Первые строки:\n")
+    f.write(bio_pivot.head().to_string())
 
 np.random.seed(RANDOM_STATE)
 
@@ -118,8 +127,8 @@ def add_external_features(df):
 # Применяем функцию
 bio_extended = add_external_features(bio_pivot.copy())
 
-print("Расширенный датасет:")
-bio_extended.head()
+# Сохранение расширенного датасета
+bio_extended.to_csv(OUTPUT_DIR / 'data' / 'bio_extended.csv', index=False)
 
 species_cols = [col for col in bio_extended.columns if 'species' in col.lower() or 'endemic' in col.lower()]
 
@@ -136,29 +145,39 @@ else:
         np.random.normal(100, 50, len(bio_extended))
     ).clip(0, None)
 
-print(f"Biodiversity Index создан. Диапазон: [{bio_extended['biodiversity_index'].min():.2f}, {bio_extended['biodiversity_index'].max():.2f}]")
+# Сохранение информации о biodiversity index
+with open(OUTPUT_DIR / 'reports' / '04_biodiversity_index.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Biodiversity Index создан.\n")
+    f.write(f"Диапазон: [{bio_extended['biodiversity_index'].min():.2f}, {bio_extended['biodiversity_index'].max():.2f}]\n")
+    f.write(f"Среднее: {bio_extended['biodiversity_index'].mean():.2f}\n")
+    f.write(f"Медиана: {bio_extended['biodiversity_index'].median():.2f}\n")
 
-print("Пропущенные значения:")
+# Сохранение информации о пропусках
 missing = bio_extended.isnull().sum()
 missing_pct = (missing / len(bio_extended) * 100).round(2)
 missing_df = pd.DataFrame({
     'Пропуски': missing,
     'Процент': missing_pct
 })
-print(missing_df[missing_df['Пропуски'] > 0].sort_values('Пропуски', ascending=False))
+missing_df[missing_df['Пропуски'] > 0].sort_values('Пропуски', ascending=False).to_csv(
+    OUTPUT_DIR / 'data' / 'missing_values.csv'
+)
 
 numeric_cols = bio_extended.select_dtypes(include=[np.number]).columns
 for col in numeric_cols:
     if bio_extended[col].isnull().sum() > 0:
         bio_extended[col].fillna(bio_extended[col].median(), inplace=True)
 
-print("Пропуски заполнены.")
-print(f"Оставшиеся пропуски: {bio_extended.isnull().sum().sum()}")
+# Сохранение финального датасета после заполнения пропусков
+bio_extended.to_csv(OUTPUT_DIR / 'data' / 'bio_extended_clean.csv', index=False)
 
 key_features = ['biodiversity_index', 'avg_temperature', 'forest_cover',
                 'population_density', 'protected_areas', 'annual_rainfall']
 
-bio_extended[key_features].describe().round(2)
+# Сохранение описательной статистики ключевых признаков
+bio_extended[key_features].describe().round(2).to_csv(
+    OUTPUT_DIR / 'data' / 'key_features_stats.csv'
+)
 
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -178,14 +197,16 @@ axes[1].set_title('Box plot индекса биоразнообразия', font
 axes[1].grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.show()
+plt.savefig(OUTPUT_DIR / 'figures' / '01_distribution.png', dpi=300, bbox_inches='tight')
+plt.close()
 
 # Проверка на нормальность распределения
 from scipy import stats
 skewness = stats.skew(bio_extended['biodiversity_index'])
 kurtosis = stats.kurtosis(bio_extended['biodiversity_index'])
-print(f"\nАсимметрия (Skewness): {skewness:.3f}")
-print(f"Эксцесс (Kurtosis): {kurtosis:.3f}")
+with open(OUTPUT_DIR / 'reports' / '05_normality_test.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Асимметрия (Skewness): {skewness:.3f}\n")
+    f.write(f"Эксцесс (Kurtosis): {kurtosis:.3f}\n")
 
 # Корреляционная матрица
 correlation_features = ['biodiversity_index', 'avg_temperature', 'forest_cover',
@@ -199,11 +220,13 @@ sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm',
             center=0, square=True, linewidths=1, cbar_kws={"shrink": 0.8})
 plt.title('Корреляционная матрица признаков', fontsize=16, fontweight='bold', pad=20)
 plt.tight_layout()
-plt.show()
+plt.savefig(OUTPUT_DIR / 'figures' / '02_correlation_matrix.png', dpi=300, bbox_inches='tight')
+plt.close()
 
-# Топ коррелирующих факторов с биоразнообразием
-print("\nКорреляция с Biodiversity Index:")
-print(corr_matrix['biodiversity_index'].sort_values(ascending=False))
+# Сохранение корреляций с биоразнообразием
+corr_matrix['biodiversity_index'].sort_values(ascending=False).to_csv(
+    OUTPUT_DIR / 'data' / 'biodiversity_correlations.csv', header=['Correlation']
+)
 
 fig, axes = plt.subplots(2, 3, figsize=(18, 12))
 axes = axes.ravel()
@@ -345,7 +368,7 @@ fig.update_layout(
     showlegend=False
 )
 
-fig.show()
+fig.write_html(OUTPUT_DIR / 'figures' / '06_factors_distribution_map.html')
 
 feature_columns = [
     'avg_temperature',
@@ -365,12 +388,17 @@ target_column = 'biodiversity_index'
 X = bio_extended[feature_columns].copy()
 y = bio_extended[target_column].copy()
 
-print(f"Размер признаков: {X.shape}")
-print(f"Размер целевой переменной: {y.shape}")
-print(f"\nПризнаки:\n{feature_columns}")
+# Сохранение информации о признаках
+with open(OUTPUT_DIR / 'reports' / '06_features_info.txt', 'w', encoding='utf-8') as f:
+    f.write(f"Размер признаков: {X.shape}\n")
+    f.write(f"Размер целевой переменной: {y.shape}\n\n")
+    f.write("Признаки:\n")
+    for feat in feature_columns:
+        f.write(f"  - {feat}\n")
 
 def remove_outliers_iqr(df, columns, multiplier=1.5):
     df_clean = df.copy()
+    outliers_info = []
     for col in columns:
         Q1 = df_clean[col].quantile(0.25)
         Q3 = df_clean[col].quantile(0.75)
@@ -380,15 +408,21 @@ def remove_outliers_iqr(df, columns, multiplier=1.5):
 
         outliers_count = ((df_clean[col] < lower_bound) | (df_clean[col] > upper_bound)).sum()
         if outliers_count > 0:
-            print(f"{col}: найдено {outliers_count} выбросов")
+            outliers_info.append(f"{col}: найдено {outliers_count} выбросов")
             # Обрезаем выбросы вместо удаления
             df_clean[col] = df_clean[col].clip(lower_bound, upper_bound)
 
-    return df_clean
+    return df_clean, outliers_info
 
-print("Обработка выбросов...")
-X_clean = remove_outliers_iqr(X, feature_columns)
-print(f"\nРазмер после обработки: {X_clean.shape}")
+outliers_info = []
+X_clean, outliers_info = remove_outliers_iqr(X, feature_columns)
+
+# Сохранение информации о выбросах
+with open(OUTPUT_DIR / 'reports' / '07_outliers.txt', 'w', encoding='utf-8') as f:
+    f.write("Обработка выбросов\n\n")
+    for info in outliers_info:
+        f.write(info + "\n")
+    f.write(f"\nРазмер после обработки: {X_clean.shape}\n")
 
 X_train, X_test, y_train, y_test = train_test_split(
     X_clean, y, test_size=0.2, random_state=RANDOM_STATE
