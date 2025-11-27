@@ -1,0 +1,10 @@
+Indicator,Correlation
+biodiversity_index,1.0
+protected_areas,0.11005214258947534
+avg_temperature,0.09871372722961944
+urbanization_rate,0.07018186014214306
+gdp_per_capita,-0.005664895251043286
+forest_cover,-0.016812125931577705
+population_density,-0.031289637471167316
+annual_rainfall,-0.04376945183271225
+co2_emissions,-0.09195950122547121

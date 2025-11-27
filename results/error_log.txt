@@ -1,0 +1,7 @@
+
+
+ОШИБКА ПРИ ВЫПОЛНЕНИИ: [Errno 2] No such file or directory: '/Users/rizatkabdybek/Documents/Data/ml_lab.py'
+Traceback (most recent call last):
+  File "/Users/rizatkabdybek/Documents/Data/run_analysis.py", line 19, in <module>
+    exec(open('/Users/rizatkabdybek/Documents/Data/ml_lab.py').read())
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/rizatkabdybek/Documents/Data/ml_lab.py'

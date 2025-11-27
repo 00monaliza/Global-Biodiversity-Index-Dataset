@@ -1,0 +1,13 @@
+Размер признаков: (235, 9)
+Размер целевой переменной: (235,)
+
+Признаки:
+  - avg_temperature
+  - forest_cover
+  - population_density
+  - area_km2
+  - gdp_per_capita
+  - annual_rainfall
+  - protected_areas
+  - urbanization_rate
+  - co2_emissions

@@ -1,0 +1,7 @@
+Уникальные страны: 235
+Уникальные индикаторы: 3
+
+Примеры индикаторов:
+  - Number of endemic species with small occurrence regions (50x50)
+  - Number of total species
+  - Number of species with an extinction threat probability greater than or equal to 80
